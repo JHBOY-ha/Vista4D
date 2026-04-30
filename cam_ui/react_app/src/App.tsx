@@ -15,8 +15,18 @@ function resolveViserUrl(): string {
   const params = new URLSearchParams(window.location.search)
   const override = params.get('viser')
   if (override) return override
-  return `http://localhost:${__VISER_PORT__}`
+
+  const { protocol, hostname } = window.location
+
+  // Localhost works for local runs and SSH port-forwarding.
+  if (hostname === 'localhost' || hostname === '127.0.0.1') {
+    return `http://localhost:${__VISER_PORT__}`
+  }
+
+  // Remote browser access: use the same host as the React app, but Viser's port.
+  return `${protocol}//${hostname}:${__VISER_PORT__}`
 }
+
 
 // Type definitions
 interface HealthResponse {

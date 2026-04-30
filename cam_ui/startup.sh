@@ -16,6 +16,7 @@ REPO_DIR="$( cd "$SCRIPT_DIR/.." && pwd )"
 # ^Using SCRIPT_DIR and REPO_DIR makes the script work even if you don't run it from the base directory
 
 # Ports (configures all scripts)
+HOST=0.0.0.0
 VISER_PORT=9997
 FASTAPI_PORT=9998
 REACT_PORT=9999
@@ -100,7 +101,7 @@ echo "Building React app..."
 VISER_PORT=$VISER_PORT FASTAPI_PORT=$FASTAPI_PORT REACT_PORT=$REACT_PORT npm run build
 echo "[OK] Build complete"
 
-VISER_PORT=$VISER_PORT FASTAPI_PORT=$FASTAPI_PORT REACT_PORT=$REACT_PORT npm run preview &
+VISER_PORT=$VISER_PORT FASTAPI_PORT=$FASTAPI_PORT REACT_PORT=$REACT_PORT npm run preview -- --host $HOST --port $REACT_PORT &
 REACT_PID=$!
 
 echo "[OK] React preview server started (PID: $REACT_PID)"
