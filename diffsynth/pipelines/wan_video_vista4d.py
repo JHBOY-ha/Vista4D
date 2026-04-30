@@ -127,29 +127,53 @@ class Vista4DPipeline(BasePipeline):
                 mask_in_channels = 2 * 4 * pow(pipe.vae.upsampling_factor, 2),  # 4 is VAE temporal compression factor
             )
 
+            has_wrapped_blocks = any(hasattr(block, "module") for block in pipe.dit.blocks)
+
             for block in pipe.dit.blocks:
+                block_for_vista4d = block.module if hasattr(block, "module") else block
+
                 # Camera encoder (zero-initialized)
-                block.cam_encoder = torch.nn.Linear(6, dim)
-                torch.nn.init.zeros_(block.cam_encoder.weight)
-                torch.nn.init.zeros_(block.cam_encoder.bias)
+                block_for_vista4d.cam_encoder = torch.nn.Linear(6, dim)
+                torch.nn.init.zeros_(block_for_vista4d.cam_encoder.weight)
+                torch.nn.init.zeros_(block_for_vista4d.cam_encoder.bias)
+
                 # Projection after self-attention (identity-initialized)
-                block.projector = torch.nn.Linear(dim, dim)
-                block.projector.weight = torch.nn.Parameter(torch.eye(dim))
-                block.projector.bias = torch.nn.Parameter(torch.zeros(dim))
+                block_for_vista4d.projector = torch.nn.Linear(dim, dim)
+                block_for_vista4d.projector.weight = torch.nn.Parameter(torch.eye(dim))
+                block_for_vista4d.projector.bias = torch.nn.Parameter(torch.zeros(dim))
 
             if vista4d_checkpoint is not None:
+                vista4d_state_dict = torch.load(vista4d_checkpoint, map_location="cpu", weights_only=True)
+
+                remapped_state_dict = {}
+                for key, value in vista4d_state_dict.items():
+                    key = key.replace(".norm_q.weight", ".norm_q.module.weight")
+                    key = key.replace(".norm_k.weight", ".norm_k.module.weight")
+                    key = key.replace(".norm_k_img.weight", ".norm_k_img.module.weight")
+                    key = key.replace(".norm3.weight", ".norm3.module.weight")
+                    key = key.replace(".norm3.bias", ".norm3.module.bias")
+                    remapped_state_dict[key] = value
+                vista4d_state_dict = remapped_state_dict
+
                 missing_keys, unexpected_keys = pipe.dit.load_state_dict(
-                    torch.load(vista4d_checkpoint, map_location="cpu", weights_only=True), strict=False,
+                    vista4d_state_dict, strict=False,
                 )
                 assert len(unexpected_keys) == 0,\
                     f"Encountered the following unexpected keys from Vista4D checkpoint: {unexpected_keys}."
                 print(f"Loaded checkpoint from: {vista4d_checkpoint}")
 
+
         # Change image_encoder.model.log_scale from scalar to 1D tensor, otherwise FSDP2 reports an error
         if pipe.image_encoder is not None:
             pipe.image_encoder.model.log_scale = torch.nn.Parameter(pipe.image_encoder.model.log_scale.data.view(1))
 
+        if use_usp:
+            import os
+            device = f"cuda:{int(os.environ.get('LOCAL_RANK', '0'))}"
+
         pipe = pipe.to(dtype=torch_dtype, device=device)  # TODO: Will this be a problem for training?
+
+
 
         # Unified Sequence Parallel
         if use_usp:

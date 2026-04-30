@@ -78,4 +78,5 @@ $RUN -m scripts.inference.inference \
     --height $HEIGHT --width $WIDTH --num_frames $NUM_FRAMES \
     --seed "${SEED[@]}" \
     --save_gif \
+    --vram_limit ${VRAM_LIMIT:-24} \
     $ARGS

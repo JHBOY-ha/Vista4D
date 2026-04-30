@@ -341,14 +341,28 @@ class BasePipeline(torch.nn.Module):
 
             if torch.cuda.is_available():
                 local_rank = int(os.environ.get("LOCAL_RANK", "0"))
-                if vram_config.get("computation_device") in ["cuda", torch.device("cuda")]:
-                    vram_config["computation_device"] = f"cuda:{local_rank}"
-                    print(f"[download_and_load_models] FIX computation_device -> {vram_config['computation_device']}", flush=True)
+                rank_device = f"cuda:{local_rank}"
+
+                for key in ("computation_device", "offload_device", "onload_device", "preparing_device"):
+                    if vram_config.get(key) in ["cuda", torch.device("cuda")]:
+                        vram_config[key] = rank_device
+                        print(f"[download_and_load_models] FIX {key} -> {vram_config[key]}", flush=True)
+
 
             print(f"[download_and_load_models] vram_limit={vram_limit}", flush=True)
-            print(f"[download_and_load_models] resolved computation_device={vram_config.get('computation_device')} "
+            print(
+                f"[download_and_load_models] resolved "
+                f"computation_device={vram_config.get('computation_device')} "
                 f"computation_dtype={vram_config.get('computation_dtype')} "
-                f"offload_device={vram_config.get('offload_device', None)}", flush=True)
+                f"offload_device={vram_config.get('offload_device')} "
+                f"offload_dtype={vram_config.get('offload_dtype')} "
+                f"onload_device={vram_config.get('onload_device')} "
+                f"onload_dtype={vram_config.get('onload_dtype')} "
+                f"preparing_device={vram_config.get('preparing_device')} "
+                f"preparing_dtype={vram_config.get('preparing_dtype')}",
+                flush=True,
+            )
+
 
             _dbg(f"before_auto_load_model[{i}]")
 

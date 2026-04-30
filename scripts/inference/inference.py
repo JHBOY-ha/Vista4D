@@ -17,13 +17,32 @@ from utils.media import load_cameras, load_masks, load_video, np_to_pil, pil_to_
 
 def get_pipeline(args, vista4d_config: Dict[str, Any]):
     model_id_with_origin_paths = args.model_id_with_origin_paths.split(",")
-    model_configs = [
-        ModelConfig(
-            path=glob(path.join(args.local_model_folder, id.split(":")[0], id.split(":")[1])),
+
+    def make_model_config(model_id_with_origin_path):
+        model_name, origin_path = model_id_with_origin_path.split(":")
+        model_path = glob(path.join(args.local_model_folder, model_name, origin_path))
+
+        if origin_path.startswith("diffusion_pytorch_model"):
+            return ModelConfig(
+                path=model_path,
+                skip_download=True,
+                offload_dtype=torch.float8_e4m3fn,
+                offload_device="cuda",
+                onload_dtype=torch.float8_e4m3fn,
+                onload_device="cuda",
+                preparing_dtype=torch.float8_e4m3fn,
+                preparing_device="cuda",
+                computation_dtype=torch.bfloat16,
+                computation_device="cuda",
+            )
+
+        return ModelConfig(
+            path=model_path,
             skip_download=True,
         )
-        for id in model_id_with_origin_paths
-    ]
+
+    model_configs = [make_model_config(x) for x in model_id_with_origin_paths]
+
     tokenizer_config = ModelConfig(
         path=glob(path.join(
             args.local_model_folder,
