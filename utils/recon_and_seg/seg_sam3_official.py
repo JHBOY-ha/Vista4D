@@ -1,3 +1,4 @@
+import os
 from typing import List
 
 import numpy as np
@@ -5,14 +6,17 @@ import numpy.typing as npt
 from PIL import Image
 
 from sam3.model_builder import build_sam3_video_predictor
+
 from sam3.model.sam3_video_predictor import Sam3VideoPredictorMultiGPU
 from utils.misc import cleanup
 
 
 def init_sam3_video():
     print(f"Loading Segment Anything 3 model (from official implementation/repo).")
-    video_predictor = build_sam3_video_predictor()
+    checkpoint_path = os.environ.get("SAM3_CHECKPOINT_PATH", "./checkpoints/sam3/sam3.pt")
+    video_predictor = build_sam3_video_predictor(checkpoint_path=checkpoint_path)
     return video_predictor
+
 
 
 def run_sam3_video(video: npt.NDArray[np.uint8], video_predictor: Sam3VideoPredictorMultiGPU, keywords: List[str]):
